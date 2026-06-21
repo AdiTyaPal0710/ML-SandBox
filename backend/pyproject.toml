@@ -6,5 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "docker>=7.1.0",
+    "langgraph>=1.2.6",
     "pandas>=3.0.3",
 ]
