@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Terminal, Code2, Activity, CheckCircle2, XCircle } from 'lucide-react';
+import { Play, Terminal, Code2, Activity, CheckCircle2, XCircle, FileBox } from 'lucide-react';
 
 function App() {
 
@@ -49,6 +49,20 @@ function App() {
     };
   }
 
+  const handleCodeUpload = (e) => {
+
+    const file = e.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCode(event.target.result);
+    }
+    reader.readAsText(file);
+  }
   return (
     <div className="flex h-screen bg-slate-950 text-slate-300 font-sans">
 
@@ -81,11 +95,42 @@ function App() {
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-slate-200 focus:outline-none focus:border-blue-500"
+              placeholder="e.g., Tune this model to achieve > 85% accuracy..."
             />
           </div>
 
-          <div className="flex flex-col gap-2 flex-1">
-            <label className="text-sm font-semibold text-slate-400">Starting Python Sandbox Code</label>
+          {/* New File Upload Row */}
+          <div className="flex gap-4 mt-2">
+            {/* Python Script Upload */}
+            <div className="relative flex-1">
+              <input
+                type="file"
+                accept=".py"
+                onChange={handleCodeUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded border border-slate-700 transition-colors pointer-events-none">
+                <Code2 size={18} />
+                <span>Upload Python Script</span>
+              </div>
+            </div>
+
+            {/* Dataset Upload (UI Placeholder for now) */}
+            <div className="relative flex-1">
+              <input
+                type="file"
+                accept=".csv,.json"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded border border-slate-700 transition-colors pointer-events-none">
+                <FileBox size={18} />
+                <span>Upload Dataset (CSV/JSON)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 flex-1 mt-2">
+            <label className="text-sm font-semibold text-slate-400">Current Workspace Code</label>
             <textarea
               value={code}
               onChange={(e) => setCode(e.target.value)}
