@@ -1,11 +1,34 @@
 import json
+import os
+import shutil
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect,UploadFile, File
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from agent import graph
 
 app = FastAPI(title = "AI Code Sandbox")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Ensure the data directory exists
+os.makedirs("./data", exist_ok=True)
+
+@app.post("/upload")
+async def upload_dataset(file: UploadFile = File(...)):
+    """Saves the uploaded dataset to the local ./data folder"""
+    file_path = f"./data/{file.filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"filename": file.filename, "message": "Successfully uploaded"}
+
 
 @app.websocket("/ws/agent")
 async def websocket_endpoint(websocket: WebSocket):
