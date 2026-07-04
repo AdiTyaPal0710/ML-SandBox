@@ -24,7 +24,7 @@ def run_Sandbox(script_string: str)->dict:
                     temp_dir: {"bind": "/workspace", "mode": "rw"} 
                 }
             )
-            result = container.wait()
+            result = container.wait(timeout=120)
 
             exit_code = result.get("StatusCode")
             stdout = container.logs().decode('utf-8')

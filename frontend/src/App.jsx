@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Play, Terminal, Code2, Activity, CheckCircle2, XCircle, FileBox } from 'lucide-react';
 
 function App() {
-
   const [goal, setGoal] = useState("Calculate the square root of 144 without crashing.");
   const [code, setCode] = useState("import math\n\nprint('Starting calculation...')\nresult = 10 / 0  # Bug!\nprint('Done.')");
   const [logs, setLogs] = useState([]);
   const [status, setStatus] = useState('idle');
+  const [datasetUploaded, setDatasetUploaded] = useState(false);
 
   const ws = useRef(null);
   const logsEndRef = useRef(null);
@@ -15,23 +15,20 @@ function App() {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-
   const triggerAgent = () => {
 
+    ws.current?.close();
     setLogs([]);
-    setStatus('running')
+    setStatus('running');
 
     ws.current = new WebSocket("ws://localhost:8000/ws/agent");
 
-
     ws.current.onopen = () => {
-
       //Send payload
       ws.current.send(JSON.stringify({ goal, code }));
-    }
+    };
 
     ws.current.onmessage = (event) => {
-
       const payload = JSON.parse(event.data);
 
       if (payload.node === 'system' && payload.message.includes('finished')) {
@@ -41,18 +38,16 @@ function App() {
       }
 
       setLogs(prev => [...prev, payload]);
-    }
+    };
 
     ws.current.onerror = (error) => {
       setLogs((prev) => [...prev, { node: 'error', message: 'WebSocket Connection Failed. Is the Python server running?' }]);
       setStatus('error');
     };
-  }
+  };
 
   const handleCodeUpload = (e) => {
-
     const file = e.target.files[0];
-
     if (!file) {
       return;
     }
@@ -60,12 +55,36 @@ function App() {
     const reader = new FileReader();
     reader.onload = (event) => {
       setCode(event.target.result);
-    }
+    };
     reader.readAsText(file);
-  }
+  };
+
+  const handleDatasetUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      // Hit our new FastAPI endpoint
+      const response = await fetch("http://localhost:8000/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      setDatasetUploaded(true);
+
+      // Magically tell the AI exactly where to find the dataset!
+      setGoal(prev => prev + `\n\nUse the dataset located at /data/${data.filename}`);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Failed to upload dataset. Is FastAPI running?");
+    }
+  };
+
   return (
     <div className="flex h-screen bg-slate-950 text-slate-300 font-sans">
-
       {/* ================= LEFT PANEL: CODE EDITOR ================= */}
       <div className="w-1/2 flex flex-col border-r border-slate-800 bg-slate-900">
 
@@ -115,16 +134,17 @@ function App() {
               </div>
             </div>
 
-            {/* Dataset Upload (UI Placeholder for now) */}
+            {/* Dataset Upload */}
             <div className="relative flex-1">
               <input
                 type="file"
                 accept=".csv,.json"
+                onChange={handleDatasetUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              <div className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded border border-slate-700 transition-colors pointer-events-none">
+              <div className={`flex items-center justify-center gap-2 ${datasetUploaded ? 'bg-emerald-900 border-emerald-500 text-emerald-200' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} p-3 rounded border border-slate-700 transition-colors pointer-events-none`}>
                 <FileBox size={18} />
-                <span>Upload Dataset (CSV/JSON)</span>
+                <span>{datasetUploaded ? 'Dataset Ready!' : 'Upload Dataset (CSV/JSON)'}</span>
               </div>
             </div>
           </div>
