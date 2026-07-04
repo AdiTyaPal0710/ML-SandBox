@@ -3,7 +3,7 @@ import tempfile
 import os
 
 def run_Sandbox(script_string: str)->dict: 
-
+    
     try:
         client = docker.from_env()
     except docker.errors.DockerException as e:
@@ -16,15 +16,26 @@ def run_Sandbox(script_string: str)->dict:
             f.write(script_string)
         
         try:
+            data_dir = os.path.abspath("./data")
+            os.makedirs(data_dir, exist_ok=True)
+
             container = client.containers.run(
                 image="python:3.10-slim",
                 command="python /workspace/train.py",
                 detach=True,
-                volumes = {
-                    temp_dir: {"bind": "/workspace", "mode": "rw"} 
+                mem_limit="512m",
+                nano_cpus=1_000_000_000,
+                volumes={
+                    temp_dir: {"bind": "/workspace", "mode": "rw"},
+                    data_dir: {"bind": "/data", "mode": "ro"},
                 }
             )
-            result = container.wait(timeout=120)
+
+            try:
+                result = container.wait(timeout=120)
+            except Exception:
+                container.kill()
+                result = {"StatusCode":-1}
 
             exit_code = result.get("StatusCode")
             stdout = container.logs().decode('utf-8')

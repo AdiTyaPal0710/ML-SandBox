@@ -51,8 +51,8 @@ def Executore_Node(state: AgentState)->AgentState:
     code = state["current_code"]
     result = run_Sandbox(code)
 
-    new_logs = state.get("execution_logs",[]) 
-    new_logs.append(result["logs"])
+    new_logs = result["logs"]
+    #new_logs.append(result["logs"])
 
     print("   [Docker Output]:", result["logs"].strip())
 
@@ -68,7 +68,7 @@ def evaluate_Node(state: AgentState):
     latest_logs = state["execution_logs"][-1]
 
     prompt = f"""
-    You are a Senior ML Engineer. Evaluate the following execution log against the user's goal.
+    You are a Senior ML Engineer.Evaluate ONLY the most recent execution results below.
     Goal: {state['goal']}
     Exit Code: {state['exit_code']}
     Logs: {latest_logs}

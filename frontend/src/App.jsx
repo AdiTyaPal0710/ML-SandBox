@@ -2,11 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { Play, Terminal, Code2, Activity, CheckCircle2, XCircle, FileBox } from 'lucide-react';
 
 function App() {
-  const [goal, setGoal] = useState("Calculate the square root of 144 without crashing.");
+  //const [goal, setGoal] = useState("Calculate the square root of 144 without crashing.");
   const [code, setCode] = useState("import math\n\nprint('Starting calculation...')\nresult = 10 / 0  # Bug!\nprint('Done.')");
   const [logs, setLogs] = useState([]);
   const [status, setStatus] = useState('idle');
   const [datasetUploaded, setDatasetUploaded] = useState(false);
+  const [baseGoal, setBaseGoal] = useState("Calculate the square root of 144 without crashing.");
+  const [datasetFilename, setDatasetFilename] = useState(null);
+  const fullGoal = datasetFilename
+    ? `${baseGoal}\n\nUse the dataset at /data/${datasetFilename}`
+    : baseGoal;
 
   const ws = useRef(null);
   const logsEndRef = useRef(null);
@@ -25,7 +30,7 @@ function App() {
 
     ws.current.onopen = () => {
       //Send payload
-      ws.current.send(JSON.stringify({ goal, code }));
+      ws.current.send(JSON.stringify({ goal: fullGoal, code }));
     };
 
     ws.current.onmessage = (event) => {
@@ -37,6 +42,9 @@ function App() {
         setStatus('error');
       }
 
+      if (payload.data?.current_code) {
+        setCode(payload.data.current_code);
+      }
       setLogs(prev => [...prev, payload]);
     };
 
@@ -67,16 +75,13 @@ function App() {
     formData.append("file", file);
 
     try {
-      // Hit our new FastAPI endpoint
       const response = await fetch("http://localhost:8000/upload", {
         method: "POST",
         body: formData,
       });
       const data = await response.json();
+      setDatasetFilename(data.filename);
       setDatasetUploaded(true);
-
-      // Magically tell the AI exactly where to find the dataset!
-      setGoal(prev => prev + `\n\nUse the dataset located at /data/${data.filename}`);
     } catch (err) {
       console.error("Upload failed", err);
       alert("Failed to upload dataset. Is FastAPI running?");
@@ -109,11 +114,11 @@ function App() {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-400">Agent Objective (Goal)</label>
-            <input
-              type="text"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-slate-200 focus:outline-none focus:border-blue-500"
+            <textarea
+              value={baseGoal}
+              onChange={(e) => setBaseGoal(e.target.value)}
+              rows={3}
+              className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
               placeholder="e.g., Tune this model to achieve > 85% accuracy..."
             />
           </div>
@@ -195,9 +200,18 @@ function App() {
 
                   {/* If the data is a complex object (like from LangGraph), format it nicely */}
                   {typeof log.data === 'object' ? (
-                    <pre className="whitespace-pre-wrap text-slate-400 pl-2 border-l-2 border-slate-700">
-                      {JSON.stringify(log.data, null, 2)}
-                    </pre>
+                    log.node === 'modify_code' && log.data.current_code ? (
+                      <div className="flex flex-col gap-2 pl-2 border-l-2 border-slate-700">
+                        <span className="text-xs text-slate-500">Iteration {log.data.iteration_count} — Rewritten Code:</span>
+                        <pre className="whitespace-pre-wrap text-emerald-300 bg-slate-900 p-3 rounded text-xs">
+                          {log.data.current_code}
+                        </pre>
+                      </div>
+                    ) : (
+                      <pre className="whitespace-pre-wrap text-slate-400 pl-2 border-l-2 border-slate-700">
+                        {JSON.stringify(log.data, null, 2)}
+                      </pre>
+                    )
                   ) : (
                     <span className="text-slate-300">{log.message || JSON.stringify(log.data)}</span>
                   )}
