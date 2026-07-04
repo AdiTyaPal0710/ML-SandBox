@@ -51,8 +51,8 @@ def Executore_Node(state: AgentState)->AgentState:
     code = state["current_code"]
     result = run_Sandbox(code)
 
-    new_logs = result["logs"]
-    #new_logs.append(result["logs"])
+    new_logs = state.get("execution_logs", [])
+    new_logs.append(result["logs"])
 
     print("   [Docker Output]:", result["logs"].strip())
 
