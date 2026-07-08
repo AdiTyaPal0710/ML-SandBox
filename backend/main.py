@@ -41,6 +41,7 @@ async def websocket_endpoint(websocket: WebSocket):
         initial_state = {
             "goal": payload.get("goal", ""),
             "current_code": payload.get("code", ""),
+            "requirements": payload.get("requirements", ""),
             "iteration_count": 1,
             "latest_metrics": {},
             "status": "starting",

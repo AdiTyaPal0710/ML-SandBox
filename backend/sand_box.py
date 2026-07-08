@@ -2,7 +2,7 @@ import docker
 import tempfile 
 import os
 
-def run_Sandbox(script_string: str)->dict: 
+def run_Sandbox(script_string: str, requirements: str = "")->dict: 
     
     try:
         client = docker.from_env()
@@ -15,13 +15,22 @@ def run_Sandbox(script_string: str)->dict:
         with open(script_path,"w") as f:
             f.write(script_string)
         
+        # Write requirements.txt if provided
+        if requirements.strip():
+            req_path = os.path.join(temp_dir, "requirements.txt")
+            with open(req_path, "w") as f:
+                f.write(requirements)
+            command = "sh -c 'pip install --no-cache-dir -r /workspace/requirements.txt && python /workspace/train.py'"
+        else:
+            command = "python /workspace/train.py"
+
         try:
             data_dir = os.path.abspath("./data")
             os.makedirs(data_dir, exist_ok=True)
 
             container = client.containers.run(
                 image="python:3.10-slim",
-                command="python /workspace/train.py",
+                command=command,
                 detach=True,
                 mem_limit="512m",
                 nano_cpus=1_000_000_000,

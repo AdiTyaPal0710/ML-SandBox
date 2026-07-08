@@ -5,6 +5,7 @@ function App() {
   const [code, setCode] = useState("");
   const [logs, setLogs] = useState([]);
   const [status, setStatus] = useState('idle');
+  const [requirementsUploaded, setRequirementsUploaded] = useState(false);
   const [datasetUploaded, setDatasetUploaded] = useState(false);
   const [baseGoal, setBaseGoal] = useState("");
   const [datasetFilename, setDatasetFilename] = useState(null);
@@ -36,7 +37,7 @@ function App() {
     ws.current = new WebSocket("ws://localhost:8000/ws/agent");
 
     ws.current.onopen = () => {
-      ws.current.send(JSON.stringify({ goal: fullGoal, code }));
+      ws.current.send(JSON.stringify({ goal: fullGoal, code, requirements }));
     };
 
     ws.current.onmessage = (event) => {
@@ -64,6 +65,8 @@ function App() {
     ws.current?.close();
     setCode("");
     setBaseGoal("");
+    setRequirements("");
+    setRequirementsUploaded(false);
     setLogs([]);
     setStatus('idle');
     setDatasetUploaded(false);
@@ -82,6 +85,21 @@ function App() {
     };
     reader.readAsText(file);
   };
+
+  const handleRequirementsUpload = async (e) => {
+
+    const file = e.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setRequirements(event.target.result);
+      setRequirementsUploaded(true);
+    };
+    reader.readAsText(file);
+  }
 
   const handleDatasetUpload = async (e) => {
     const file = e.target.files[0];
@@ -213,6 +231,25 @@ function App() {
                 <span>{datasetUploaded ? 'Dataset Ready!' : 'Upload Dataset'}</span>
               </div>
             </div>
+
+            {/* Requirements Upload */}
+            <div className="relative flex-1">
+              <input
+                type="file"
+                accept=".txt"
+                onChange={handleRequirementsUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <div className={`flex items-center justify-center gap-2 ${requirementsUploaded
+                ? 'bg-emerald-950/50 border-emerald-500/30 text-emerald-300'
+                : 'bg-slate-800/50 hover:bg-slate-800 text-slate-400 border-slate-700/40 border-dashed'
+                } p-3 rounded-lg border transition-all duration-200 pointer-events-none text-sm`}>
+                {requirementsUploaded ? <CheckCircle2 size={16} /> : <FileBox size={16} />}
+                <span>{requirementsUploaded ? 'Requirements Ready!' : 'Upload Requirements'}</span>
+              </div>
+            </div>
+
+
           </div>
 
           <div className="flex flex-col gap-1.5 flex-1">

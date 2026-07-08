@@ -32,6 +32,7 @@ class EvaluatingDecision(BaseModel):
 class AgentState(TypedDict):
     goal: str
     current_code: str
+    requirements: str
     iteration_count: int
     latest_metrics: Dict[str, Any]
     status: str
@@ -49,7 +50,8 @@ def Executore_Node(state: AgentState)->AgentState:
 
     print(f"\n[Node: Execute] Running Iteration {state['iteration_count']} in Docker...")
     code = state["current_code"]
-    result = run_Sandbox(code)
+    requirements = state.get("requirements", "")
+    result = run_Sandbox(code, requirements)
 
     new_logs = state.get("execution_logs", [])
     new_logs.append(result["logs"])
@@ -151,6 +153,7 @@ if __name__ == "__main__":
     initial_state = {
         "goal": "Run a simple print statement",
         "current_code": 'print("Hello from LangGraph!")',
+        "requirements": "",
         "iteration_count": 1,
         "latest_metrics": {},
         "status": "",
