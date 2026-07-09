@@ -5,6 +5,7 @@ function App() {
   const [code, setCode] = useState("");
   const [logs, setLogs] = useState([]);
   const [status, setStatus] = useState('idle');
+  const [requirements, setRequirements] = useState("");
   const [requirementsUploaded, setRequirementsUploaded] = useState(false);
   const [datasetUploaded, setDatasetUploaded] = useState(false);
   const [baseGoal, setBaseGoal] = useState("");
@@ -105,6 +106,22 @@ function App() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Client-side size check (50MB)
+    const MAX_SIZE = 50 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 50MB.`);
+      e.target.value = "";
+      return;
+    }
+
+    // Client-side extension check
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['csv', 'json'].includes(ext)) {
+      alert(`File type '.${ext}' is not allowed. Only .csv and .json files are accepted.`);
+      e.target.value = "";
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -113,6 +130,14 @@ function App() {
         method: "POST",
         body: formData,
       });
+
+      if (!response.ok) {
+        const err = await response.json();
+        alert(err.detail || "Upload rejected by server.");
+        e.target.value = "";
+        return;
+      }
+
       const data = await response.json();
       setDatasetFilename(data.filename);
       setDatasetUploaded(true);
