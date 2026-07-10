@@ -1,8 +1,55 @@
 import docker 
 import tempfile 
 import os
+import uuid
 
-def run_Sandbox(script_string: str, requirements: str = "")->dict: 
+
+def build_sandbox_image(requirements: str = "") -> str:
+    """
+    Builds a Docker image with the given requirements pre-installed.
+    Returns the image tag to reuse across iterations.
+    If no requirements, returns the base image name.
+    """
+    base_image = "python:3.10-slim"
+
+    if not requirements.strip():
+        return base_image
+
+    client = docker.from_env()
+    tag = f"sandbox-session-{uuid.uuid4().hex[:8]}"
+
+    with tempfile.TemporaryDirectory() as build_dir:
+        # Write requirements file
+        req_path = os.path.join(build_dir, "requirements.txt")
+        with open(req_path, "w") as f:
+            f.write(requirements)
+
+        # Write Dockerfile
+        dockerfile_path = os.path.join(build_dir, "Dockerfile")
+        with open(dockerfile_path, "w") as f:
+            f.write(f"FROM {base_image}\n")
+            f.write("COPY requirements.txt /tmp/requirements.txt\n")
+            f.write("RUN pip install --no-cache-dir -r /tmp/requirements.txt\n")
+
+        print(f"   [Docker] Building image '{tag}' with requirements...")
+        client.images.build(path=build_dir, tag=tag, rm=True)
+        print(f"   [Docker] Image '{tag}' ready.")
+
+    return tag
+
+
+def cleanup_sandbox_image(image_tag: str):
+    """Removes the custom sandbox image if it's not the base image."""
+    if image_tag and not image_tag.startswith("python:"):
+        try:
+            client = docker.from_env()
+            client.images.remove(image_tag, force=True)
+            print(f"   [Docker] Cleaned up image '{image_tag}'.")
+        except Exception:
+            pass
+
+
+def run_Sandbox(script_string: str, image: str = "python:3.10-slim")->dict: 
     
     try:
         client = docker.from_env()
@@ -14,23 +61,14 @@ def run_Sandbox(script_string: str, requirements: str = "")->dict:
         script_path = os.path.join(temp_dir,"train.py")
         with open(script_path,"w") as f:
             f.write(script_string)
-        
-        # Write requirements.txt if provided
-        if requirements.strip():
-            req_path = os.path.join(temp_dir, "requirements.txt")
-            with open(req_path, "w") as f:
-                f.write(requirements)
-            command = "sh -c 'pip install --no-cache-dir -r /workspace/requirements.txt && python /workspace/train.py'"
-        else:
-            command = "python /workspace/train.py"
 
         try:
             data_dir = os.path.abspath("./data")
             os.makedirs(data_dir, exist_ok=True)
 
             container = client.containers.run(
-                image="python:3.10-slim",
-                command=command,
+                image=image,
+                command="python /workspace/train.py",
                 detach=True,
                 mem_limit="512m",
                 nano_cpus=1_000_000_000,

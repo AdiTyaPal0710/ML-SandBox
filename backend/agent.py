@@ -3,7 +3,7 @@ from typing import TypedDict, List, Dict, Any
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from sand_box import run_Sandbox
+from sand_box import run_Sandbox, build_sandbox_image, cleanup_sandbox_image
 from dotenv import load_dotenv
 import os
 
@@ -33,6 +33,7 @@ class AgentState(TypedDict):
     goal: str
     current_code: str
     requirements: str
+    sandbox_image: str
     iteration_count: int
     latest_metrics: Dict[str, Any]
     status: str
@@ -43,15 +44,19 @@ def ingest_state(state: AgentState):
 
     print("\n[Node: Ingest] Reading initial goal and baseline code...")
 
-    return state
+    # Build a Docker image with requirements pre-installed (only happens once)
+    requirements = state.get("requirements", "")
+    image_tag = build_sandbox_image(requirements)
+
+    return {"sandbox_image": image_tag}
 
 
 def Executore_Node(state: AgentState)->AgentState:
 
     print(f"\n[Node: Execute] Running Iteration {state['iteration_count']} in Docker...")
     code = state["current_code"]
-    requirements = state.get("requirements", "")
-    result = run_Sandbox(code, requirements)
+    image = state.get("sandbox_image", "python:3.10-slim")
+    result = run_Sandbox(code, image)
 
     new_logs = state.get("execution_logs", [])
     new_logs.append(result["logs"])
@@ -154,6 +159,7 @@ if __name__ == "__main__":
         "goal": "Run a simple print statement",
         "current_code": 'print("Hello from LangGraph!")',
         "requirements": "",
+        "sandbox_image": "",
         "iteration_count": 1,
         "latest_metrics": {},
         "status": "",

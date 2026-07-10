@@ -7,6 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, H
 from fastapi.middleware.cors import CORSMiddleware
 
 from agent import graph
+from sand_box import cleanup_sandbox_image
 
 app = FastAPI(title = "AI Code Sandbox")
 
@@ -92,6 +93,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "goal": payload.get("goal", ""),
             "current_code": payload.get("code", ""),
             "requirements": payload.get("requirements", ""),
+            "sandbox_image": "",
             "iteration_count": 1,
             "latest_metrics": {},
             "status": "starting",
@@ -104,9 +106,11 @@ async def websocket_endpoint(websocket: WebSocket):
             "message": "Agent loop started..."
         }))
 
+        final_state = {}
         async for output in graph.astream(initial_state):
              for node_name, state_update in output.items():
-                
+                final_state.update(state_update)
+
                 response_payload = {
                     "node": node_name,
                     "data": state_update
@@ -114,6 +118,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 await websocket.send_text(json.dumps(response_payload))
         
+        # Clean up the custom Docker image after the session
+        image_tag = final_state.get("sandbox_image", "")
+        cleanup_sandbox_image(image_tag)
+
         await websocket.send_text(json.dumps({"node": "system", "message": "Agent finished execution."}))
 
     except WebSocketDisconnect:
