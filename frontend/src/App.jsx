@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Terminal, Code2, Activity, CheckCircle2, XCircle, FileBox, RotateCcw, Sparkles, Upload } from 'lucide-react';
+import { Play, Terminal, Code2, Activity, CheckCircle2, XCircle, FileBox, RotateCcw, Sparkles, Upload, Download } from 'lucide-react';
 
 function App() {
   const [code, setCode] = useState("");
@@ -60,6 +60,15 @@ function App() {
       setLogs((prev) => [...prev, { node: 'error', message: 'WebSocket Connection Failed. Is the Python server running?' }]);
       setStatus('error');
     };
+  };
+
+  const handleStop = () => {
+    const wasRunning = status === 'running';
+    ws.current?.close();
+    if (wasRunning) {
+      setLogs(prev => [...prev, { node: 'system', message: 'Agent stopped by user.' }]);
+    }
+    setStatus('idle');
   };
 
   const handleReset = () => {
@@ -147,6 +156,23 @@ function App() {
     }
   };
 
+  const handleDownloadCode = () => {
+    if (!code.trime) {
+      alert("No code is available");
+      return;
+    }
+    const blob = new Blob([code], { type: 'text/x-python' });
+    const url = window.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "agent_code.py";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.revokeObjectURL(url);
+
+  }
   const getNodeColor = (node) => {
     const colors = {
       error: 'text-red-400',
@@ -201,6 +227,16 @@ function App() {
               {status === 'running' ? <Activity size={16} className="animate-spin" /> : <Sparkles size={16} />}
               {status === 'running' ? 'Agent Running...' : 'Deploy Agent'}
             </button>
+
+            {status !== 'idle' && (
+              <button
+                onClick={status === 'running' ? handleStop : handleReset}
+                className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg shadow-red-500/20"
+              >
+                <XCircle size={16} />
+                {status === 'running' ? 'Stop Agent' : 'Clear All'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -274,6 +310,20 @@ function App() {
               </div>
             </div>
 
+            {/* Code Download */}
+            <div className="flex-1">
+              <button
+                onClick={handleDownloadCode}
+                disabled={!code.trim()}
+                className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg border transition-all duration-200 text-sm ${code.trim()
+                    ? "bg-blue-600 hover:bg-blue-500 text-white border-blue-500"
+                    : "bg-slate-800/50 text-slate-500 border-slate-700/40 cursor-not-allowed"
+                  }`}
+              >
+                <Download size={16} />
+                Download Code
+              </button>
+            </div>
 
           </div>
 
